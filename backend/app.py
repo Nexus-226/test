@@ -1,9 +1,19 @@
-from flask import Flask, request, jsonify, send_from_directory
 import random
-import os
+
+from flask import Flask, jsonify, request, send_from_directory
+from werkzeug.exceptions import BadRequest
 
 # 配置 Flask 去 frontend 文件夹找静态文件
 app = Flask(__name__, static_folder='../frontend', static_url_path='')
+
+@app.errorhandler(500)
+def internal_error(_error):
+    return jsonify({
+        "error": {
+            "code": "INTERNAL_ERROR",
+            "message": "服务端发生错误"
+        }
+    }), 500
 
 # 解决第 2 点：添加根路由，返回前端页面
 @app.route('/')
@@ -19,78 +29,78 @@ def pick():
         return jsonify({
             "error": {
                 "code": "INVALID_JSON",
-                "message": "Request must be JSON",
-                "details": "Content-Type must be application/json"
+                "message": "请求体必须是合法 JSON",
+                "details": [{"field": "body", "reason": "Content-Type 必须是 application/json"}]
             }
         }), 400
-    
+
     try:
         data = request.get_json()
-    except Exception:
+    except BadRequest:
         return jsonify({
             "error": {
                 "code": "INVALID_JSON",
-                "message": "Malformed JSON",
-                "details": "Could not parse JSON body"
+                "message": "请求体必须是合法 JSON",
+                "details": [{"field": "body", "reason": "无法解析 JSON 请求体"}]
             }
         }), 400
+
+    def validation_error(field, reason):
+        return jsonify({
+            "error": {
+                "code": "VALIDATION_ERROR",
+                "message": "请求参数不符合约定",
+                "details": [{"field": field, "reason": reason}]
+            }
+        }), 422
+
+    if not isinstance(data, dict):
+        return validation_error("body", "必须是 JSON 对象")
 
     candidates = data.get('candidates')
     count = data.get('count', 1)
 
-    def error_response(message, details=""):
-        return jsonify({
-            "error": {
-                "code": "VALIDATION_ERROR",
-                "message": message,
-                "details": details
-            }
-        }), 422
+    if not isinstance(candidates, list):
+        return validation_error("candidates", "必须是数组")
+    if not 1 <= len(candidates) <= 100:
+        return validation_error("candidates", "候选人数必须为 1～100")
+
+    normalized_candidates = []
+    seen_ids = set()
+    for index, candidate in enumerate(candidates):
+        field = f"candidates[{index}]"
+        if not isinstance(candidate, dict):
+            return validation_error(field, "必须是对象")
+
+        candidate_id = candidate.get("id")
+        if not isinstance(candidate_id, str):
+            return validation_error(f"{field}.id", "必须是字符串")
+        candidate_id = candidate_id.strip()
+        if not 1 <= len(candidate_id) <= 64:
+            return validation_error(f"{field}.id", "去除首尾空白后长度必须为 1～64")
+        if candidate_id in seen_ids:
+            return validation_error(f"{field}.id", "候选人 ID 不能重复")
+        seen_ids.add(candidate_id)
+
+        name = candidate.get("name")
+        if not isinstance(name, str):
+            return validation_error(f"{field}.name", "必须是字符串")
+        name = name.strip()
+        if not 1 <= len(name) <= 50:
+            return validation_error(f"{field}.name", "去除首尾空白后长度必须为 1～50")
+
+        normalized_candidates.append({"id": candidate_id, "name": name})
 
     if not isinstance(count, int) or isinstance(count, bool):
-        return error_response("count must be an integer", f"Got type: {type(count).__name__}")
+        return validation_error("count", "必须是整数")
+    if not 1 <= count <= len(normalized_candidates):
+        return validation_error("count", "必须在 1 到候选人数之间")
 
-    if not candidates or not isinstance(candidates, list):
-        return error_response("candidates must be a non-empty array", "Missing or invalid candidates")
-
-    if len(candidates) == 0:
-        return error_response("candidates list cannot be empty")
-
-    # 解决第 3 点：严格的字段类型和长度校验
-    ids = []
-    for i, c in enumerate(candidates):
-        if not isinstance(c, dict):
-            return error_response(f"candidate at index {i} must be an object", "Not a JSON object")
-        
-        # 校验 id
-        if 'id' not in c or not isinstance(c['id'], str):
-            return error_response(f"candidate at index {i} missing string 'id'")
-        
-        clean_id = c['id'].strip()
-        if not (1 <= len(clean_id) <= 64):
-            return error_response(f"candidate id at index {i} length must be 1-64")
-        
-        # 校验 name
-        if 'name' not in c or not isinstance(c['name'], str):
-            return error_response(f"candidate at index {i} missing string 'name'")
-            
-        if not (1 <= len(c['name']) <= 50):
-            return error_response(f"candidate name at index {i} length must be 1-50")
-
-        ids.append(clean_id)
-
-    # 检查重复
-    if len(ids) != len(set(ids)):
-        return error_response("Duplicate IDs found in candidates")
-
-    if count <= 0 or count > len(candidates):
-        return error_response(f"count must be between 1 and {len(candidates)}", f"Got count: {count}")
-
-    winners = random.sample(candidates, count)
+    winners = random.sample(normalized_candidates, count)
 
     return jsonify({
         "picked": winners,
-        "candidate_count": len(candidates)
+        "candidate_count": len(normalized_candidates)
     }), 200
 
 if __name__ == '__main__':
