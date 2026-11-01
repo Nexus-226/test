@@ -1,0 +1,32 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>随机点名器</title>
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+  <main class="container">
+    <h1>随机点名器</h1>
+
+    <section class="panel">
+      <label for="names">名单（每行一个名字）</label>
+      <textarea id="names" rows="8" placeholder="张三&#10;李四&#10;王五"></textarea>
+      <p class="hint">名字可以重复，系统会自动分配唯一编号。</p>
+    </section>
+
+    <section class="panel">
+      <label for="count">抽取人数</label>
+      <input id="count" type="text" inputmode="numeric" value="1">
+    </section>
+
+    <button id="pick-btn" type="button">抽取</button>
+
+    <section id="result" class="result" hidden></section>
+    <section id="error" class="error" role="alert" hidden></section>
+  </main>
+
+  <script src="app.js"></script>
+</body>
+</html>
