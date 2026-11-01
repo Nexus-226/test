@@ -1,12 +1,20 @@
-from flask import Flask, request, jsonify
+from flask import Flask, request, jsonify, send_from_directory
 import random
-import json
+import os
 
-app = Flask(__name__)
+# 配置 Flask 去 frontend 文件夹找静态文件
+app = Flask(__name__, static_folder='../frontend', static_url_path='')
+
+# 解决第 2 点：添加根路由，返回前端页面
+@app.route('/')
+def index():
+    try:
+        return send_from_directory(app.static_folder, 'index.html')
+    except FileNotFoundError:
+        return "前端页面 index.html 还没做好，请稍后再试。", 404
 
 @app.route('/api/pick', methods=['POST'])
 def pick():
-    # 5. 非法 JSON 处理 (返回 400 + INVALID_JSON)
     if not request.is_json:
         return jsonify({
             "error": {
@@ -28,10 +36,8 @@ def pick():
         }), 400
 
     candidates = data.get('candidates')
-    # 2. count 为可选，默认值为 1
     count = data.get('count', 1)
 
-    # 3. 参数校验统一返回 422 VALIDATION_ERROR
     def error_response(message, details=""):
         return jsonify({
             "error": {
@@ -41,7 +47,6 @@ def pick():
             }
         }), 422
 
-    # 6. 字符串类型的 count 处理
     if not isinstance(count, int) or isinstance(count, bool):
         return error_response("count must be an integer", f"Got type: {type(count).__name__}")
 
@@ -51,24 +56,38 @@ def pick():
     if len(candidates) == 0:
         return error_response("candidates list cannot be empty")
 
-    # 检查重复 ID (兼容对象和字符串)
+    # 解决第 3 点：严格的字段类型和长度校验
     ids = []
-    for c in candidates:
-        if isinstance(c, dict) and 'id' in c:
-            ids.append(str(c['id']))
-        else:
-            ids.append(str(c))
+    for i, c in enumerate(candidates):
+        if not isinstance(c, dict):
+            return error_response(f"candidate at index {i} must be an object", "Not a JSON object")
+        
+        # 校验 id
+        if 'id' not in c or not isinstance(c['id'], str):
+            return error_response(f"candidate at index {i} missing string 'id'")
+        
+        clean_id = c['id'].strip()
+        if not (1 <= len(clean_id) <= 64):
+            return error_response(f"candidate id at index {i} length must be 1-64")
+        
+        # 校验 name
+        if 'name' not in c or not isinstance(c['name'], str):
+            return error_response(f"candidate at index {i} missing string 'name'")
+            
+        if not (1 <= len(c['name']) <= 50):
+            return error_response(f"candidate name at index {i} length must be 1-50")
 
+        ids.append(clean_id)
+
+    # 检查重复
     if len(ids) != len(set(ids)):
         return error_response("Duplicate IDs found in candidates")
 
     if count <= 0 or count > len(candidates):
         return error_response(f"count must be between 1 and {len(candidates)}", f"Got count: {count}")
 
-    # 随机抽取
     winners = random.sample(candidates, count)
 
-    # 1. 成功响应返回 picked + candidate_count
     return jsonify({
         "picked": winners,
         "candidate_count": len(candidates)
