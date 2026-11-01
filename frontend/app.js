@@ -1,6 +1,6 @@
-// ⚠️ 后端（B）还没完成时，把 USE_MOCK 设为 true，页面用符合 docs/API.md 的假数据运行。
-// 联调时改回 false，页面就会真正请求 POST /api/pick。
-const USE_MOCK = true;
+// 默认请求真实后端 POST /api/pick。
+// 仅本地开发、后端未启动时，可临时改为 true 用假数据调试。
+const USE_MOCK = false;
 
 const namesEl = document.getElementById('names');
 const countEl = document.getElementById('count');
