@@ -182,7 +182,7 @@ git merge origin/main
 - A（前端）：
   - 环境：现代浏览器即可，无需额外安装（纯原生 HTML/CSS/JS，不用 Node/npm）。
   - 安装命令：无。
-  - 启动：后端未完成时用浏览器直接打开 `frontend/index.html`（`app.js` 顶部 `USE_MOCK=true` 走假数据）；联调时由 Flask 在 `/` 提供页面（见 B 条目），并把 `USE_MOCK` 改为 `false`。
+  - 启动：由 Flask 在 `/` 提供页面（见 B 条目），前端默认 `USE_MOCK=false` 请求真实 `/api/pick`；仅本地无后端调试时，临时把 `USE_MOCK` 改为 `true` 并用浏览器直接打开 `frontend/index.html`。
   - 页面地址：联调后为 Flask 的本地地址（如 `http://127.0.0.1:5000/`）。
   - 后端连接：通过相对路径 `/api/pick` 请求，与页面同源、无需跨域配置。
 - B：后端所需环境、安装命令、启动命令、服务地址。
