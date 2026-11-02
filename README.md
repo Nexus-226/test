@@ -4,7 +4,7 @@
 
 我们要做一个小网页：输入几个人的名字，点击按钮，随机选出一个或几个人。练习的重点是三个人各做一部分，再通过 PR 把成果放到一起。
 
-> 当前只有目录和接口说明，还不能启动网页或后端。实现必须遵守下方的技术栈要求；负责实现的人需要把实际安装和启动方法补到本文件中。
+> 项目使用 Flask 同时提供网页和 API。前端、后端和测试 PR 全部合并后，可按照本文“安装与启动”一节完成本地运行和验收。
 
 ## 先认识这几个地方
 
@@ -40,7 +40,7 @@ Flask 必须同时提供页面和 API：
 - Python 依赖写入仓库根目录的 `requirements.txt`，至少包含 Flask 和 pytest。
 - 业务代码分别放在 `frontend/` 和 `backend/`，测试放在 `tests/`。
 
-实现完成后，项目必须支持下面的基本操作：
+项目支持下面的基本操作：
 
 ```bash
 python -m venv .venv
@@ -177,15 +177,89 @@ git merge origin/main
 
 ## 安装与启动
 
-以下内容由对应成员在实现时填写，当前没有可运行的命令。
+需要 Python 3.11 或更高版本。以下命令都在仓库根目录执行，不需要单独启动前端，也不需要 Node.js 或 npm。
 
-- A（前端）：
-  - 环境：现代浏览器即可，无需额外安装（纯原生 HTML/CSS/JS，不用 Node/npm）。
-  - 安装命令：无。
-  - 启动：由 Flask 在 `/` 提供页面（见 B 条目），前端默认 `USE_MOCK=false` 请求真实 `/api/pick`；仅本地无后端调试时，临时把 `USE_MOCK` 改为 `true` 并用浏览器直接打开 `frontend/index.html`。
-  - 页面地址：联调后为 Flask 的本地地址（如 `http://127.0.0.1:5000/`）。
-  - 后端连接：通过相对路径 `/api/pick` 请求，与页面同源、无需跨域配置。
-- B：后端所需环境、安装命令、启动命令、服务地址。
-- C：测试所需环境、运行命令，以及一次完整演示的操作步骤。
+### 1. 获取完整代码
 
-更新此处时，每个人只补自己负责的条目；提交前同步队友的修改，避免覆盖。
+前端、后端和测试 PR 全部合并后，切换并更新默认分支：
+
+```bash
+git switch main
+git pull --ff-only origin main
+```
+
+确认仓库中至少存在 `frontend/index.html`、`backend/app.py`、`requirements.txt` 和 `tests/`。
+
+### 2. 创建环境并安装依赖
+
+Windows PowerShell：
+
+```powershell
+python --version
+python -m venv .venv
+.\.venv\Scripts\python.exe -m pip install -r requirements.txt
+```
+
+macOS 或 Linux：
+
+```bash
+python3 --version
+python3 -m venv .venv
+./.venv/bin/python -m pip install -r requirements.txt
+```
+
+命令直接使用虚拟环境中的 Python，因此无需手动激活虚拟环境。
+
+### 3. 启动网页和 API
+
+Windows PowerShell：
+
+```powershell
+.\.venv\Scripts\python.exe -m flask --app backend.app run --debug
+```
+
+macOS 或 Linux：
+
+```bash
+./.venv/bin/python -m flask --app backend.app run --debug
+```
+
+看到 `Running on http://127.0.0.1:5000` 后，保持终端窗口运行，并在浏览器打开：
+
+```text
+http://127.0.0.1:5000/
+```
+
+页面通过同源相对路径 `POST /api/pick` 调用后端。正常联调时不要直接打开 `frontend/index.html`，也不要把 `USE_MOCK` 改为 `true`。在终端按 `Ctrl+C` 可停止服务。
+
+### 4. 运行测试
+
+测试使用 Flask 测试客户端，不需要先启动开发服务器。
+
+Windows PowerShell：
+
+```powershell
+.\.venv\Scripts\python.exe -m pytest
+```
+
+macOS 或 Linux：
+
+```bash
+./.venv/bin/python -m pytest
+```
+
+### 5. 手动验收
+
+1. 输入多个人名，抽取 1 人，确认结果来自名单。
+2. 抽取多人，确认人数正确且同一次结果没有重复 ID。
+3. 检查空名单、抽取人数为 0、人数超过名单人数等错误提示。
+4. 先触发错误，再改为合法输入并成功抽取，确认旧错误提示消失；反向操作时旧结果也应消失。
+
+### 常见问题
+
+- `No module named flask`：通常是安装依赖和启动服务时使用了不同的 Python；请直接使用上方 `.venv` 中的 Python 命令。
+- `ERR_CONNECTION_REFUSED`：Flask 没有运行，或运行它的终端已经关闭。重新启动服务并保持终端开启。
+- 首页显示 `Not Found`：确认当前分支包含 `frontend/index.html`，并从仓库根目录启动 Flask。
+- 页面仍显示旧样式或旧脚本：先按 `Ctrl+F5` 强制刷新浏览器。
+- 页面布局异常：使用浏览器无痕窗口复测；若无痕窗口正常，通常是浏览器扩展注入样式造成的冲突。
+- 5000 端口被占用：启动时追加其他端口，例如 `--port 5001`，并打开对应地址。
